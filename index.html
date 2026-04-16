@@ -4213,57 +4213,74 @@
 ]
 
     // Очистка строк: обрезка пробелов, схлопывание, защита от null/undefined
-    const clean = v => v ? String(v).trim().replace(/\s+/g, ' ') : '';
+   
+const clean = v => v ? String(v).trim().replace(/\s+/g, ' ') : '';
 
-    // Подготовка данных
-    const data = rawData.map(r => ({
-      level: clean(r.level), pp: clean(r.pp), inst: clean(r.inst),
-      vac: clean(r.vac), dept: clean(r.dept), qty: clean(r.qty), mentor: clean(r.mentor)
-    }));
+let lastInst = ''; // Для исправления объединённых ячеек Excel
 
-    // Заполнение фильтров уникальными значениями
-    const populate = (id, key) => {
-      const sel = document.getElementById(id);
-      const unique = [...new Set(data.map(r => r[key]))].filter(Boolean).sort((a,b)=>a.localeCompare(b));
-      unique.forEach(val => { const opt = document.createElement('option'); opt.value = val; opt.textContent = val; sel.appendChild(opt); });
-    };
+const data = rawData.map(r => {
+  // Извлекаем значения по порядку столбцов в вашем JSON
+  const [pp, qty, instRaw, vac, dept, mentor] = Object.values(r).map(clean);
+  
+  // Если ячейка учреждения пустая, берём предыдущее значение (фикс merged cells)
+  if (instRaw) lastInst = instRaw;
+  const inst = instRaw || lastInst;
 
-    populate('f-level', 'level');
-    populate('f-inst', 'inst');
-    populate('f-dept', 'dept');
-    populate('f-mentor', 'mentor');
+  return {
+    level: 'ВО', // В вашем экспорте нет столбца уровня, временно ставим "ВО"
+    pp, inst, vac, dept, qty, mentor
+  };
+});
 
-    // Рендер таблицы
-    const render = () => {
-      const lvl = document.getElementById('f-level').value;
-      const inst = document.getElementById('f-inst').value;
-      const dept = document.getElementById('f-dept').value;
-      const ment = document.getElementById('f-mentor').value;
-      const tbody = document.getElementById('tbody');
-      tbody.innerHTML = '';
+// Заполнение выпадающих списков
+const populate = (id, key) => {
+  const sel = document.getElementById(id);
+  const unique = [...new Set(data.map(r => r[key]))].filter(Boolean).sort((a,b)=>a.localeCompare(b));
+  unique.forEach(val => {
+    const opt = document.createElement('option');
+    opt.value = val; opt.textContent = val;
+    sel.appendChild(opt);
+  });
+};
 
-      const filtered = data.filter(r => 
-        (!lvl || r.level === lvl) && 
-        (!inst || r.inst === inst) && 
-        (!dept || r.dept === dept) && 
-        (!ment || r.mentor === ment)
-      );
+populate('f-level', 'level');
+populate('f-inst', 'inst');
+populate('f-dept', 'dept');
+populate('f-mentor', 'mentor');
 
-      if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="empty">Нет данных по выбранным фильтрам</td></tr>';
-        return;
-      }
+// Рендер таблицы
+const render = () => {
+  const lvl = document.getElementById('f-level').value;
+  const inst = document.getElementById('f-inst').value;
+  const dept = document.getElementById('f-dept').value;
+  const ment = document.getElementById('f-mentor').value;
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
 
-      filtered.forEach(r => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${r.pp}</td><td>${r.level}</td><td>${r.inst}</td><td>${r.vac}</td><td>${r.dept}</td><td>${r.qty}</td><td>${r.mentor}</td>`;
-        tbody.appendChild(tr);
-      });
-    };
+  const filtered = data.filter(r => 
+    (!lvl || r.level === lvl) && 
+    (!inst || r.inst === inst) && 
+    (!dept || r.dept === dept) && 
+    (!ment || r.mentor === ment)
+  );
 
-    // Слушатели изменений
-    ['f-level','f-inst','f-dept','f-mentor'].forEach(id => document.getElementById(id).addEventListener('change', render));
-    render();
-  </script>
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">Нет данных по выбранным фильтрам</td></tr>';
+    return;
+  }
+
+  filtered.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${r.pp}</td><td>${r.level}</td><td>${r.inst}</td><td>${r.vac}</td><td>${r.dept}</td><td>${r.qty}</td><td>${r.mentor}</td>`;
+    tbody.appendChild(tr);
+  });
+};
+
+// Слушатели изменений
+['f-level','f-inst','f-dept','f-mentor'].forEach(id => 
+  document.getElementById(id).addEventListener('change', render)
+);
+render();
+</script>
 </body>
 </html>
