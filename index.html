@@ -43,7 +43,7 @@ tr:hover { background: #f1f5f9; }
 
 <div class="filters">
   <div class="filter-group">
-    <label class="filter-label">Уровень</label>
+    <label class="filter-label">Уровень образования</label>
     <select id="f-level" class="search-input">
       <option value="">Все уровни</option>
     </select>
@@ -100,6 +100,12 @@ const clean = v => v ? String(v).trim().replace(/\s+/g, ' ') : '';
 const displayValue = v => (v === '0' || v === '-') ? '-' : v;
 const isValidOption = v => v && v !== '0' && v !== '-';
 
+// Словарь для переименования
+const levelMapping = {
+  'ВО': 'Высшее образование',
+  'СПО': 'Среднее профессиональное образование'
+};
+
 function initSearchableDropdown(hiddenId, searchId, dropdownId, clearId, options) {
   const searchInput = document.getElementById(searchId);
   const dropdown = document.getElementById(dropdownId);
@@ -152,15 +158,18 @@ let data = [];
 fetch('./data.json')
   .then(res => res.json())
   .then(raw => {
-    data = raw.map(r => ({
-      level: clean(r["Уровень"]), 
-      inst: clean(r["Учреждение"]), 
-      pos: clean(r["Вакансия"]), // Мапим Вакансию в pos
-      dept: clean(r["Подразделение"]), 
-      vacant: clean(r["Вакантные места"]),
-      target: clean(r["Целевые места"]), 
-      mentor: clean(r["Наставник"])
-    })).filter(r => r.inst && r.pos);
+    data = raw.map(r => {
+      const originalLevel = clean(r["Уровень"]);
+      return {
+        level: levelMapping[originalLevel] || originalLevel, // Применяем маппинг
+        inst: clean(r["Учреждение"]), 
+        pos: clean(r["Вакансия"]), 
+        dept: clean(r["Подразделение"]), 
+        vacant: clean(r["Вакантные места"]),
+        target: clean(r["Целевые места"]), 
+        mentor: clean(r["Наставник"])
+      };
+    }).filter(r => r.inst && r.pos);
 
     const instOptions = [...new Set(data.map(r => r.inst))].filter(isValidOption).sort();
     const posOptions = [...new Set(data.map(r => r.pos))].filter(isValidOption).sort();
@@ -188,7 +197,6 @@ const render = () => {
   const tbody = document.getElementById('tbody');
   tbody.innerHTML = '';
   
-  // Фильтрация
   const filtered = data.filter(r => 
     (!lvl || r.level === lvl) && 
     (!inst || r.inst === inst) && 
