@@ -40,7 +40,7 @@ tr:hover { background: #f1f5f9; }
 </head>
 <body>
 <div class="container">
-<h1>📋 Вакансии ВО и СПО</h1>
+<h1>Вакансии ВО и СПО</h1>
 
 <div class="filters">
   <div class="filter-group">
@@ -97,49 +97,82 @@ tr:hover { background: #f1f5f9; }
 </div>
 
 <script>
+// 1. Вспомогательные функции
 const clean = v => v ? String(v).trim().replace(/\s+/g, ' ') : '';
-// Вспомогательная функция: отображать "-" если 0 или -
 const displayValue = v => (v === '0' || v === '-') ? '-' : v;
-// Вспомогательная функция: валидное ли это значение для фильтра
 const isValidOption = v => v && v !== '0' && v !== '-';
 
-let data = [];
-let instOptions = [];
-let deptOptions = [];
-let mentorOptions = [];
+// 2. Определение функции, которая вызывает ошибку
+function initSearchableDropdown(hiddenId, searchId, dropdownId, clearId, options) {
+  const searchInput = document.getElementById(searchId);
+  const dropdown = document.getElementById(dropdownId);
+  const hiddenInput = document.getElementById(hiddenId);
+  const clearBtn = document.getElementById(clearId);
 
-// Загрузка JSON
+  function showDropdown(filter = '') {
+    const filtered = options.filter(opt => opt.toLowerCase().includes(filter.toLowerCase()));
+    dropdown.innerHTML = '';
+    if (filtered.length === 0) {
+      dropdown.innerHTML = '<div class="dropdown-empty">Ничего не найдено</div>';
+    } else {
+      filtered.forEach(opt => {
+        const item = document.createElement('div');
+        item.className = 'dropdown-item' + (opt === hiddenInput.value ? ' selected' : '');
+        item.textContent = opt;
+        item.addEventListener('click', () => selectOption(opt));
+        dropdown.appendChild(item);
+      });
+    }
+    dropdown.classList.add('active');
+  }
+
+  function selectOption(value) {
+    hiddenInput.value = value;
+    searchInput.value = value;
+    clearBtn.classList.add('visible');
+    dropdown.classList.remove('active');
+    render();
+  }
+
+  function clearSelection() {
+    hiddenInput.value = '';
+    searchInput.value = '';
+    clearBtn.classList.remove('visible');
+    dropdown.classList.remove('active');
+    render();
+  }
+
+  searchInput.addEventListener('focus', () => showDropdown(searchInput.value));
+  searchInput.addEventListener('input', (e) => {
+    showDropdown(e.target.value);
+    clearBtn.classList.toggle('visible', !!e.target.value);
+  });
+  clearBtn.addEventListener('click', (e) => { e.stopPropagation(); clearSelection(); });
+  document.addEventListener('click', (e) => { if (!e.target.closest('.searchable-select')) dropdown.classList.remove('active'); });
+}
+
+// 3. Основная логика
+let data = [];
 fetch('./data.json')
-  .then(res => {
-    if (!res.ok) throw new Error('Не удалось загрузить data.json');
-    return res.json();
-  })
+  .then(res => res.json())
   .then(raw => {
     data = raw.map(r => ({
-      level: clean(r["Уровень"]),
-      inst: clean(r["Учреждение"]),
-      vac: clean(r["Вакансия"]),
-      dept: clean(r["Подразделение"]),
-      vacant: clean(r["Вакантные места"]),
-      target: clean(r["Целевые места"]),
-      mentor: clean(r["Наставник"])
+      level: clean(r["Уровень"]), inst: clean(r["Учреждение"]), vac: clean(r["Вакансия"]),
+      dept: clean(r["Подразделение"]), vacant: clean(r["Вакантные места"]),
+      target: clean(r["Целевые места"]), mentor: clean(r["Наставник"])
     })).filter(r => r.inst && r.vac);
 
-    // Получаем уникальные значения для фильтров (исключая 0 и -)
-    instOptions = [...new Set(data.map(r => r.inst))].filter(isValidOption).sort();
-    deptOptions = [...new Set(data.map(r => r.dept))].filter(isValidOption).sort();
-    mentorOptions = [...new Set(data.map(r => r.mentor))].filter(isValidOption).sort();
+    const instOptions = [...new Set(data.map(r => r.inst))].filter(isValidOption).sort();
+    const deptOptions = [...new Set(data.map(r => r.dept))].filter(isValidOption).sort();
+    const mentorOptions = [...new Set(data.map(r => r.mentor))].filter(isValidOption).sort();
 
-    // Заполняем уровень
     const levelSel = document.getElementById('f-level');
-    const levels = [...new Set(data.map(r => r.level))].filter(Boolean).sort();
-    levels.forEach(val => {
+    [...new Set(data.map(r => r.level))].filter(Boolean).sort().forEach(val => {
       const opt = document.createElement('option');
       opt.value = val; opt.textContent = val;
       levelSel.appendChild(opt);
     });
 
-    // Инициализация searchable dropdowns
     initSearchableDropdown('f-inst', 'f-inst-search', 'f-inst-dropdown', 'f-inst-clear', instOptions);
     initSearchableDropdown('f-dept', 'f-dept-search', 'f-dept-dropdown', 'f-dept-clear', deptOptions);
     initSearchableDropdown('f-mentor', 'f-mentor-search', 'f-mentor-dropdown', 'f-mentor-clear', mentorOptions);
@@ -147,52 +180,20 @@ fetch('./data.json')
     document.getElementById('stats').style.display = 'none';
     document.getElementById('table-container').style.display = 'block';
     render();
-
     levelSel.addEventListener('change', render);
-  })
-  .catch(err => {
-    document.getElementById('stats').innerHTML = `<span style="color:#b91c1c">⚠️ Ошибка: ${err.message}</span>`;
   });
 
-// ... функции initSearchableDropdown остаются без изменений ...
-// (добавьте их сюда из вашего кода)
-
-// Рендер таблицы
 const render = () => {
-  const lvl = document.getElementById('f-level').value;
-  const inst = document.getElementById('f-inst').value;
-  const dept = document.getElementById('f-dept').value;
-  const ment = document.getElementById('f-mentor').value;
+  const [lvl, inst, dept, ment] = ['f-level', 'f-inst', 'f-dept', 'f-mentor'].map(id => document.getElementById(id).value);
   const tbody = document.getElementById('tbody');
-  const stats = document.getElementById('stats');
   tbody.innerHTML = '';
-
-  const filtered = data.filter(r => 
-    (!lvl || r.level === lvl) && 
-    (!inst || r.inst === inst) && 
-    (!dept || r.dept === dept) && 
-    (!ment || r.mentor === ment)
-  );
-
-  stats.textContent = `Показано ${filtered.length} из ${data.length} записей`;
-
-  if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="empty">Нет данных по выбранным фильтрам</td></tr>';
-    return;
-  }
-
-  filtered.forEach((r, i) => {
+  const filtered = data.filter(r => (!lvl || r.level === lvl) && (!inst || r.inst === inst) && (!dept || r.dept === dept) && (!ment || r.mentor === ment));
+  document.getElementById('stats').textContent = `Показано ${filtered.length} из ${data.length} записей`;
+  
+  if (filtered.length === 0) tbody.innerHTML = '<tr><td colspan="8" class="empty">Нет данных</td></tr>';
+  else filtered.forEach((r, i) => {
     const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${i + 1}</td>
-      <td>${r.level}</td>
-      <td>${r.inst}</td>
-      <td>${displayValue(r.vac)}</td>
-      <td>${displayValue(r.dept)}</td>
-      <td>${r.vacant}</td>
-      <td>${r.target}</td>
-      <td>${displayValue(r.mentor)}</td>
-    `;
+    tr.innerHTML = `<td>${i + 1}</td><td>${r.level}</td><td>${r.inst}</td><td>${displayValue(r.vac)}</td><td>${displayValue(r.dept)}</td><td>${r.vacant}</td><td>${r.target}</td><td>${displayValue(r.mentor)}</td>`;
     tbody.appendChild(tr);
   });
 };
