@@ -1,130 +1,257 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Вакансии ВО и СПО</title>
-  <style>
-    :root { --bg: #f5f7fa; --card: #fff; --primary: #2563eb; --border: #e2e8f0; --text: #1e293b; }
-    body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
-    .container { max-width: 1300px; margin: 0 auto; }
-    h1 { font-size: 1.5rem; margin-bottom: 20px; }
-    .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
-    .filters select { flex: 1; min-width: 150px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); font-size: 14px; cursor: pointer; }
-    .table-wrap { background: var(--card); border-radius: 12px; overflow-x: auto; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-    table { width: 100%; border-collapse: collapse; font-size: 14px; }
-    th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border); }
-    th { background: #f8fafc; font-weight: 600; position: sticky; top: 0; }
-    tr:hover { background: #f1f5f9; }
-    .empty { padding: 40px; text-align: center; color: #64748b; }
-    .loading { text-align: center; padding: 40px; font-size: 1.2rem; color: #64748b; }
-    .error { background: #fef2f2; color: #b91c1c; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-    @media (max-width: 900px) { .filters { flex-direction: column; } table { font-size: 13px; } th, td { padding: 8px; } }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Вакансии ВО и СПО</title>
+<style>
+:root { --bg: #f5f7fa; --card: #fff; --primary: #2563eb; --border: #e2e8f0; --text: #1e293b; }
+body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+.container { max-width: 1300px; margin: 0 auto; }
+h1 { font-size: 1.5rem; margin-bottom: 20px; }
+.filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+.filter-group { flex: 1; min-width: 200px; position: relative; }
+.filter-label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; color: #64748b; }
+
+/* Searchable dropdown styles */
+.searchable-select { position: relative; }
+.search-input { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; box-sizing: border-box; cursor: text; }
+.search-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+.dropdown-list { position: absolute; top: 100%; left: 0; right: 0; background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-top: 4px; max-height: 250px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); display: none; }
+.dropdown-list.active { display: block; }
+.dropdown-item { padding: 8px 12px; cursor: pointer; font-size: 14px; border-bottom: 1px solid var(--border); }
+.dropdown-item:last-child { border-bottom: none; }
+.dropdown-item:hover { background: #f1f5f9; }
+.dropdown-item.selected { background: #dbeafe; color: var(--primary); font-weight: 600; }
+.dropdown-empty { padding: 12px; text-align: center; color: #94a3b8; font-size: 13px; }
+.clear-btn { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #94a3b8; cursor: pointer; padding: 4px; display: none; font-size: 16px; }
+.clear-btn.visible { display: block; }
+.clear-btn:hover { color: var(--text); }
+
+.table-wrap { background: var(--card); border-radius: 12px; overflow-x: auto; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border); }
+th { background: #f8fafc; font-weight: 600; position: sticky; top: 0; }
+tr:hover { background: #f1f5f9; }
+.empty { padding: 40px; text-align: center; color: #64748b; }
+.stats { margin-bottom: 15px; font-size: 14px; color: #64748b; }
+@media (max-width: 900px) { .filters { flex-direction: column; } .filter-group { min-width: 100%; } table { font-size: 13px; } th, td { padding: 8px; } }
+</style>
 </head>
 <body>
-  <div class="container">
-    <h1>📋 Вакансии ВО и СПО</h1>
-    <div class="filters">
-      <select id="f-level"><option value="">Все уровни</option></select>
-      <select id="f-inst"><option value="">Все учреждения</option></select>
-      <select id="f-dept"><option value="">Все подразделения</option></select>
-      <select id="f-mentor"><option value="">Все должности</option></select>
-    </div>
-    
-    <div id="status" class="loading">Загрузка данных...</div>
-    <div class="table-wrap" id="table-container" style="display:none;">
-      <table id="tbl">
-        <thead>
-          <tr>
-            <th>№</th><th>Уровень</th><th>Учреждение</th><th>Вакансия</th>
-            <th>Подразделение</th><th>Вакантные</th><th>Целевые</th><th>Наставник</th>
-          </tr>
-        </thead>
-        <tbody id="tbody"></tbody>
-      </table>
-    </div>
+<div class="container">
+<h1>📋 Вакансии ВО и СПО</h1>
+
+<div class="filters">
+  <div class="filter-group">
+    <label class="filter-label">Уровень</label>
+    <select id="f-level" class="search-input">
+      <option value="">Все уровни</option>
+    </select>
   </div>
+  
+  <div class="filter-group">
+    <label class="filter-label">Учреждение (поиск)</label>
+    <div class="searchable-select">
+      <input type="text" class="search-input" id="f-inst-search" placeholder="Введите название...">
+      <button class="clear-btn" id="f-inst-clear">×</button>
+      <div class="dropdown-list" id="f-inst-dropdown"></div>
+    </div>
+    <input type="hidden" id="f-inst">
+  </div>
+  
+  <div class="filter-group">
+    <label class="filter-label">Подразделение (поиск)</label>
+    <div class="searchable-select">
+      <input type="text" class="search-input" id="f-dept-search" placeholder="Введите название...">
+      <button class="clear-btn" id="f-dept-clear">×</button>
+      <div class="dropdown-list" id="f-dept-dropdown"></div>
+    </div>
+    <input type="hidden" id="f-dept">
+  </div>
+  
+  <div class="filter-group">
+    <label class="filter-label">Должность наставника (поиск)</label>
+    <div class="searchable-select">
+      <input type="text" class="search-input" id="f-mentor-search" placeholder="Введите название...">
+      <button class="clear-btn" id="f-mentor-clear">×</button>
+      <div class="dropdown-list" id="f-mentor-dropdown"></div>
+    </div>
+    <input type="hidden" id="f-mentor">
+  </div>
+</div>
 
-  <script>
-    const clean = v => v ? String(v).trim().replace(/\s+/g, ' ') : '';
-    let data = [];
+<div class="stats" id="stats">Загрузка данных...</div>
 
-    // Загрузка JSON
-    fetch('./data.json')
-      .then(res => {
-        if (!res.ok) throw new Error('Не удалось загрузить data.json');
-        return res.json();
-      })
-      .then(raw => {
-        // Преобразование в удобный формат
-        data = raw.map(r => ({
-          level: clean(r["Уровень"]),
-          inst: clean(r["Учреждение"]),
-          vac: clean(r["Вакансия"]),
-          dept: clean(r["Подразделение"]),
-          vacant: clean(r["Вакантные места"]),
-          target: clean(r["Целевые места"]),
-          mentor: clean(r["Наставник"])
-        }));
+<div class="table-wrap" id="table-container" style="display:none;">
+  <table id="tbl">
+    <thead>
+      <tr>
+        <th>№</th><th>Уровень</th><th>Учреждение</th><th>Вакансия</th>
+        <th>Подразделение</th><th>Вакантные</th><th>Целевые</th><th>Наставник</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+</div>
 
-        // Заполнение фильтров
-        ['level','inst','dept','mentor'].forEach(key => {
-          const id = `f-${key}`;
-          const sel = document.getElementById(id);
-          const unique = [...new Set(data.map(r => r[key]))].filter(Boolean).sort((a,b)=>a.localeCompare(b));
-          unique.forEach(val => {
-            const opt = document.createElement('option');
-            opt.value = val; opt.textContent = val;
-            sel.appendChild(opt);
-          });
-        });
+<script>
+const clean = v => v ? String(v).trim().replace(/\s+/g, ' ') : '';
+let data = [];
+let instOptions = [];
+let deptOptions = [];
+let mentorOptions = [];
 
-        // Показать таблицу, скрыть загрузку
-        document.getElementById('status').style.display = 'none';
-        document.getElementById('table-container').style.display = 'block';
-        render();
-      })
-      .catch(err => {
-        document.getElementById('status').innerHTML = `<div class="error">⚠️ Ошибка: ${err.message}<br>Убедитесь, что файл <code>data.json</code> лежит рядом с <code>index.html</code> и открывается через сервер (GitHub Pages / Live Server).</div>`;
+// Загрузка JSON
+fetch('./data.json')
+  .then(res => {
+    if (!res.ok) throw new Error('Не удалось загрузить data.json');
+    return res.json();
+  })
+  .then(raw => {
+    data = raw.map(r => ({
+      level: clean(r["Уровень"]),
+      inst: clean(r["Учреждение"]),
+      vac: clean(r["Вакансия"]),
+      dept: clean(r["Подразделение"]),
+      vacant: clean(r["Вакантные места"]),
+      target: clean(r["Целевые места"]),
+      mentor: clean(r["Наставник"])
+    })).filter(r => r.inst && r.vac);
+
+    // Получаем уникальные значения для фильтров
+    instOptions = [...new Set(data.map(r => r.inst))].filter(Boolean).sort();
+    deptOptions = [...new Set(data.map(r => r.dept))].filter(Boolean).sort();
+    mentorOptions = [...new Set(data.map(r => r.mentor))].filter(Boolean).sort();
+
+    // Заполняем уровень
+    const levelSel = document.getElementById('f-level');
+    const levels = [...new Set(data.map(r => r.level))].filter(Boolean).sort();
+    levels.forEach(val => {
+      const opt = document.createElement('option');
+      opt.value = val; opt.textContent = val;
+      levelSel.appendChild(opt);
+    });
+
+    // Инициализация searchable dropdowns
+    initSearchableDropdown('f-inst', 'f-inst-search', 'f-inst-dropdown', 'f-inst-clear', instOptions);
+    initSearchableDropdown('f-dept', 'f-dept-search', 'f-dept-dropdown', 'f-dept-clear', deptOptions);
+    initSearchableDropdown('f-mentor', 'f-mentor-search', 'f-mentor-dropdown', 'f-mentor-clear', mentorOptions);
+
+    document.getElementById('stats').style.display = 'none';
+    document.getElementById('table-container').style.display = 'block';
+    render();
+
+    // Слушатель для уровня
+    levelSel.addEventListener('change', render);
+  })
+  .catch(err => {
+    document.getElementById('stats').innerHTML = `<span style="color:#b91c1c">⚠️ Ошибка: ${err.message}</span>`;
+  });
+
+// Инициализация searchable dropdown
+function initSearchableDropdown(hiddenId, searchId, dropdownId, clearId, options) {
+  const searchInput = document.getElementById(searchId);
+  const dropdown = document.getElementById(dropdownId);
+  const hiddenInput = document.getElementById(hiddenId);
+  const clearBtn = document.getElementById(clearId);
+
+  function showDropdown(filter = '') {
+    const filtered = options.filter(opt => opt.toLowerCase().includes(filter.toLowerCase()));
+    dropdown.innerHTML = '';
+    
+    if (filtered.length === 0) {
+      dropdown.innerHTML = '<div class="dropdown-empty">Ничего не найдено</div>';
+    } else {
+      filtered.forEach(opt => {
+        const item = document.createElement('div');
+        item.className = 'dropdown-item' + (opt === hiddenInput.value ? ' selected' : '');
+        item.textContent = opt;
+        item.addEventListener('click', () => selectOption(opt));
+        dropdown.appendChild(item);
       });
+    }
+    dropdown.classList.add('active');
+  }
 
-    // Рендер таблицы
-    const render = () => {
-      const lvl = document.getElementById('f-level').value;
-      const inst = document.getElementById('f-inst').value;
-      const dept = document.getElementById('f-dept').value;
-      const ment = document.getElementById('f-mentor').value;
-      const tbody = document.getElementById('tbody');
-      tbody.innerHTML = '';
+  function selectOption(value) {
+    hiddenInput.value = value;
+    searchInput.value = value;
+    clearBtn.classList.add('visible');
+    dropdown.classList.remove('active');
+    render();
+  }
 
-      const filtered = data.filter(r => 
-        (!lvl || r.level === lvl) && 
-        (!inst || r.inst === inst) && 
-        (!dept || r.dept === dept) && 
-        (!ment || r.mentor === ment)
-      );
+  function clearSelection() {
+    hiddenInput.value = '';
+    searchInput.value = '';
+    clearBtn.classList.remove('visible');
+    dropdown.classList.remove('active');
+    render();
+  }
 
-      if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="empty">Нет данных по выбранным фильтрам</td></tr>';
-        return;
-      }
+  // События
+  searchInput.addEventListener('focus', () => showDropdown(searchInput.value));
+  searchInput.addEventListener('input', (e) => {
+    showDropdown(e.target.value);
+    if (e.target.value) clearBtn.classList.add('visible');
+    else clearBtn.classList.remove('visible');
+  });
 
-      filtered.forEach((r, i) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${i + 1}</td>
-          <td>${r.level}</td><td>${r.inst}</td><td>${r.vac}</td>
-          <td>${r.dept}</td><td>${r.vacant}</td><td>${r.target}</td><td>${r.mentor}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-    };
+  clearBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    clearSelection();
+  });
 
-    // Слушатели фильтров
-    ['f-level','f-inst','f-dept','f-mentor'].forEach(id => 
-      document.getElementById(id).addEventListener('change', render)
-    );
-  </script>
+  // Закрытие при клике вне
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.searchable-select')) {
+      dropdown.classList.remove('active');
+    }
+  });
+
+  // Если уже есть значение (при сбросе)
+  if (hiddenInput.value) {
+    searchInput.value = hiddenInput.value;
+    clearBtn.classList.add('visible');
+  }
+}
+
+// Рендер таблицы
+const render = () => {
+  const lvl = document.getElementById('f-level').value;
+  const inst = document.getElementById('f-inst').value;
+  const dept = document.getElementById('f-dept').value;
+  const ment = document.getElementById('f-mentor').value;
+  const tbody = document.getElementById('tbody');
+  const stats = document.getElementById('stats');
+  tbody.innerHTML = '';
+
+  const filtered = data.filter(r => 
+    (!lvl || r.level === lvl) && 
+    (!inst || r.inst === inst) && 
+    (!dept || r.dept === dept) && 
+    (!ment || r.mentor === ment)
+  );
+
+  stats.textContent = `Показано ${filtered.length} из ${data.length} записей`;
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty">Нет данных по выбранным фильтрам</td></tr>';
+    return;
+  }
+
+  filtered.forEach((r, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${i + 1}</td>
+      <td>${r.level}</td><td>${r.inst}</td><td>${r.vac}</td>
+      <td>${r.dept}</td><td>${r.vacant}</td><td>${r.target}</td><td>${r.mentor}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+};
+</script>
 </body>
 </html>
