@@ -13,7 +13,6 @@ h1 { font-size: 1.5rem; margin-bottom: 20px; }
 .filter-group { flex: 1; min-width: 200px; position: relative; }
 .filter-label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; color: #64748b; }
 
-/* Searchable dropdown styles */
 .searchable-select { position: relative; }
 .search-input { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; box-sizing: border-box; cursor: text; }
 .search-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
@@ -26,7 +25,7 @@ h1 { font-size: 1.5rem; margin-bottom: 20px; }
 .dropdown-empty { padding: 12px; text-align: center; color: #94a3b8; font-size: 13px; }
 .clear-btn { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #94a3b8; cursor: pointer; padding: 4px; display: none; font-size: 16px; }
 .clear-btn.visible { display: block; }
-.clear-btn:hover { color: var(--text); }
+.clear-btn:hover { color: #1e293b; }
 
 .table-wrap { background: var(--card); border-radius: 12px; overflow-x: auto; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
@@ -61,17 +60,17 @@ tr:hover { background: #f1f5f9; }
   </div>
   
   <div class="filter-group">
-    <label class="filter-label">Подразделение (поиск)</label>
+    <label class="filter-label">Должность (поиск)</label>
     <div class="searchable-select">
-      <input type="text" class="search-input" id="f-dept-search" placeholder="Введите название...">
-      <button class="clear-btn" id="f-dept-clear">×</button>
-      <div class="dropdown-list" id="f-dept-dropdown"></div>
+      <input type="text" class="search-input" id="f-pos-search" placeholder="Введите название...">
+      <button class="clear-btn" id="f-pos-clear">×</button>
+      <div class="dropdown-list" id="f-pos-dropdown"></div>
     </div>
-    <input type="hidden" id="f-dept">
+    <input type="hidden" id="f-pos">
   </div>
   
   <div class="filter-group">
-    <label class="filter-label">Должность наставника (поиск)</label>
+    <label class="filter-label">Наставник (поиск)</label>
     <div class="searchable-select">
       <input type="text" class="search-input" id="f-mentor-search" placeholder="Введите название...">
       <button class="clear-btn" id="f-mentor-clear">×</button>
@@ -87,7 +86,7 @@ tr:hover { background: #f1f5f9; }
   <table id="tbl">
     <thead>
       <tr>
-        <th>№</th><th>Уровень</th><th>Учреждение</th><th>Вакансия</th>
+        <th>№</th><th>Уровень</th><th>Учреждение</th><th>Должность</th>
         <th>Подразделение</th><th>Вакантные</th><th>Целевые</th><th>Наставник</th>
       </tr>
     </thead>
@@ -97,12 +96,10 @@ tr:hover { background: #f1f5f9; }
 </div>
 
 <script>
-// 1. Вспомогательные функции
 const clean = v => v ? String(v).trim().replace(/\s+/g, ' ') : '';
 const displayValue = v => (v === '0' || v === '-') ? '-' : v;
 const isValidOption = v => v && v !== '0' && v !== '-';
 
-// 2. Определение функции, которая вызывает ошибку
 function initSearchableDropdown(hiddenId, searchId, dropdownId, clearId, options) {
   const searchInput = document.getElementById(searchId);
   const dropdown = document.getElementById(dropdownId);
@@ -151,19 +148,22 @@ function initSearchableDropdown(hiddenId, searchId, dropdownId, clearId, options
   document.addEventListener('click', (e) => { if (!e.target.closest('.searchable-select')) dropdown.classList.remove('active'); });
 }
 
-// 3. Основная логика
 let data = [];
 fetch('./data.json')
   .then(res => res.json())
   .then(raw => {
     data = raw.map(r => ({
-      level: clean(r["Уровень"]), inst: clean(r["Учреждение"]), vac: clean(r["Вакансия"]),
-      dept: clean(r["Подразделение"]), vacant: clean(r["Вакантные места"]),
-      target: clean(r["Целевые места"]), mentor: clean(r["Наставник"])
-    })).filter(r => r.inst && r.vac);
+      level: clean(r["Уровень"]), 
+      inst: clean(r["Учреждение"]), 
+      pos: clean(r["Вакансия"]), // Мапим Вакансию в pos
+      dept: clean(r["Подразделение"]), 
+      vacant: clean(r["Вакантные места"]),
+      target: clean(r["Целевые места"]), 
+      mentor: clean(r["Наставник"])
+    })).filter(r => r.inst && r.pos);
 
     const instOptions = [...new Set(data.map(r => r.inst))].filter(isValidOption).sort();
-    const deptOptions = [...new Set(data.map(r => r.dept))].filter(isValidOption).sort();
+    const posOptions = [...new Set(data.map(r => r.pos))].filter(isValidOption).sort();
     const mentorOptions = [...new Set(data.map(r => r.mentor))].filter(isValidOption).sort();
 
     const levelSel = document.getElementById('f-level');
@@ -174,7 +174,7 @@ fetch('./data.json')
     });
 
     initSearchableDropdown('f-inst', 'f-inst-search', 'f-inst-dropdown', 'f-inst-clear', instOptions);
-    initSearchableDropdown('f-dept', 'f-dept-search', 'f-dept-dropdown', 'f-dept-clear', deptOptions);
+    initSearchableDropdown('f-pos', 'f-pos-search', 'f-pos-dropdown', 'f-pos-clear', posOptions);
     initSearchableDropdown('f-mentor', 'f-mentor-search', 'f-mentor-dropdown', 'f-mentor-clear', mentorOptions);
 
     document.getElementById('stats').style.display = 'none';
@@ -184,16 +184,24 @@ fetch('./data.json')
   });
 
 const render = () => {
-  const [lvl, inst, dept, ment] = ['f-level', 'f-inst', 'f-dept', 'f-mentor'].map(id => document.getElementById(id).value);
+  const [lvl, inst, pos, ment] = ['f-level', 'f-inst', 'f-pos', 'f-mentor'].map(id => document.getElementById(id).value);
   const tbody = document.getElementById('tbody');
   tbody.innerHTML = '';
-  const filtered = data.filter(r => (!lvl || r.level === lvl) && (!inst || r.inst === inst) && (!dept || r.dept === dept) && (!ment || r.mentor === ment));
+  
+  // Фильтрация
+  const filtered = data.filter(r => 
+    (!lvl || r.level === lvl) && 
+    (!inst || r.inst === inst) && 
+    (!pos || r.pos === pos) && 
+    (!ment || r.mentor === ment)
+  );
+  
   document.getElementById('stats').textContent = `Показано ${filtered.length} из ${data.length} записей`;
   
   if (filtered.length === 0) tbody.innerHTML = '<tr><td colspan="8" class="empty">Нет данных</td></tr>';
   else filtered.forEach((r, i) => {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${i + 1}</td><td>${r.level}</td><td>${r.inst}</td><td>${displayValue(r.vac)}</td><td>${displayValue(r.dept)}</td><td>${r.vacant}</td><td>${r.target}</td><td>${displayValue(r.mentor)}</td>`;
+    tr.innerHTML = `<td>${i + 1}</td><td>${r.level}</td><td>${r.inst}</td><td>${displayValue(r.pos)}</td><td>${displayValue(r.dept)}</td><td>${r.vacant}</td><td>${r.target}</td><td>${displayValue(r.mentor)}</td>`;
     tbody.appendChild(tr);
   });
 };
